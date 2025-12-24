@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task 3 - Reshape vs Flatten</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+    <h2>Task 3: Reshape vs Flatten</h2>
+    <script>
+        // Original 2x3 tensor
+        const tensor = tf.tensor([[1, 2, 3], [4, 5, 6]]);
+        console.log("Original Tensor:", tensor.toString());
+
+        // Reshape to 3x2
+        const reshaped = tensor.reshape([3, 2]);
+        console.log("Reshaped Tensor (3x2):", reshaped.toString());
+
+        // Flatten to 1D
+        const flattened = tensor.flatten();
+        console.log("Flattened Tensor (1D):", flattened.toString());
+
+        // Difference explanation
+        console.log("Reshape changes shape but keeps all elements in order.");
+        console.log("Flatten converts any tensor to 1D.");
+    </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task 2 - Element-wise Operations</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+    <h2>Task 2: Element-wise Add & Multiply</h2>
+    <script>
+        const vec1 = tf.tensor([1, 2, 3]);
+        const vec2 = tf.tensor([4, 5, 6]);
+
+        // Element-wise addition
+        const addResult = tf.add(vec1, vec2);
+        console.log("Addition Result:", addResult.toString());
+
+        // Element-wise multiplication
+        const mulResult = tf.mul(vec1, vec2);
+        console.log("Multiplication Result:", mulResult.toString());
+    </script>
+</body>
+</html>
