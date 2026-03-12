@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Task 1 - MobileNet Classification</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+
+<style>
+body{font-family:Arial;text-align:center;background:#fffaf2;padding:40px;}
+img{width:300px;margin-top:20px;border-radius:10px;}
+</style>
+
+</head>
+
+<body>
+
+<h2>MobileNet Image Classification</h2>
+
+<input type="file" id="upload" accept="image/*">
+
+<br>
+
+<img id="image" hidden>
+
+<h3 id="result"></h3>
+
+<script>
+
+let model;
+
+async function loadModel(){
+console.log("Loading MobileNet...");
+model = await mobilenet.load();
+console.log("MobileNet Loaded");
+}
+
+loadModel();
+
+const upload=document.getElementById("upload");
+const img=document.getElementById("image");
+const result=document.getElementById("result");
+
+upload.addEventListener("change",function(e){
+
+const file=e.target.files[0];
+img.src=URL.createObjectURL(file);
+img.hidden=false;
+
+img.onload=async function(){
+
+const predictions=await model.classify(img,3);
+
+result.innerHTML="";
+
+predictions.forEach(p=>{
+const percent=(p.probability*100).toFixed(2);
+result.innerHTML+=`${p.className} - ${percent}% <br>`;
+});
+
+};
+
+});
+
+</script>
+
+</body>
+</html>
