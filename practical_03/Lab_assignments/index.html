@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Sentiment Analyzer</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg,#667eea,#764ba2);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px;
+}
+h1 { margin-bottom: 20px; }
+textarea, input {
+  width: 400px; padding: 10px; font-size: 16px; margin:5px 0;
+}
+button {
+  margin: 10px; padding: 10px 20px; font-size: 16px;
+  cursor: pointer; background-color:#fff; color:#764ba2; border:none; border-radius:5px; font-weight:bold;
+}
+#result { margin-top: 20px; font-size: 18px; font-weight:bold; }
+select { margin-top:10px; padding:5px; border-radius:5px; border:none; font-size:16px; }
+.progress {
+  width: 400px; height: 20px; background: rgba(255,255,255,0.3); border-radius: 10px; margin-top:10px;
+}
+.progress-bar {
+  height: 100%; width:0%; background:#fff; color:#764ba2; text-align:center; font-size:12px; border-radius:10px;
+}
+</style>
+</head>
+<body>
+<h1>Smart Sentiment Analyzer</h1>
+
+<button onclick="trainModels()">Train Models 🚀</button>
+<div class="progress"><div class="progress-bar" id="progressBar">0%</div></div>
+
+<label for="modelType">Select Model:</label>
+<select id="modelType">
+  <option value="dense">Dense Network</option>
+  <option value="rnn">RNN (LSTM)</option>
+</select>
+
+<textarea id="inputText" placeholder="Type your sentence here..."></textarea>
+<button onclick="predictSentiment()">Predict Sentiment</button>
+<div id="result"></div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Practical 1 - Linear Regression</title>
+
+
+
+    <!-- TensorFlow.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+
+    <!-- Chart.js CDN (for graph) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .box {
+            background: white;
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Practical 1: Linear Regression</h1>
+
+    <div class="box">
+        <p>
+            This experiment demonstrates Linear Regression using
+            <b>TensorFlow.js</b> with synthetic data.
+        </p>
+
+        <canvas id="myChart" width="400" height="200"></canvas>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
