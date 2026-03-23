@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pose Detection</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- TensorFlow.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <!-- PoseNet CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+</head>
+<body>
+  <h1>Pose Detection</h1>
+
+  <div id="options-bar">
+    <label for="frequency">Detection Frequency: </label>
+    <select id="frequency">
+      <option value="100">Fast (100ms)</option>
+      <option value="300">Medium (300ms)</option>
+      <option value="500">Slow (500ms)</option>
+    </select>
+  </div>
+
+  <div id="main-container">
+    <video id="video" width="600" height="500" autoplay playsinline></video>
+    <canvas id="canvas" width="600" height="500"></canvas>
+    <p id="pose-name">Pose: Detecting...</p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
