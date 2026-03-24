@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TensorFlow.js Browser Model</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+  <style>
+    /* 🌟 Light, modern theme */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f4f8;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: #ffffff;
+      padding: 30px 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    h1 {
+      font-size: 22px;
+      color: #1d3557;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 14px;
+      color: #457b9d;
+      margin-bottom: 25px;
+    }
+
+    input[type="number"] {
+      padding: 8px 12px;
+      width: 60px;
+      border-radius: 8px;
+      border: 1px solid #ccd6f6;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 10px;
+      background-color: #a8dadc;
+      color: #1d3557;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #457b9d;
+      color: #f1faee;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TensorFlow.js Model Demo</h1>
+    <p>Train, Save, Reload & Predict in Browser (Check Console)</p>
+
+    <!-- Training & Storage Buttons -->
+    <div class="section">
+      <button id="trainBtn">Train Model</button>
+      <button id="saveBtn">Save Model</button>
+      <button id="reloadBtn">Reload Model</button>
+    </div>
+
+    <!-- Prediction Input -->
+    <div class="section">
+      <input type="number" id="inputVal" value="10">
+      <button id="predictOriginalBtn">Predict Original</button>
+      <button id="predictReloadBtn">Predict Reloaded</button>
+    </div>
+
+    <!-- Export Button -->
+    <div class="section">
+      <button id="exportBtn">Export Model</button>
+    </div>
+  </div>
+
+  <script>
+    let model, reloadedModel;
+
+    // 1️⃣ Train the model
+    document.getElementById('trainBtn').addEventListener('click', async () => {
+      model = tf.sequential();
+      model.add(tf.layers.dense({units: 1, inputShape: [1]}));
+      model.compile({optimizer: 'sgd', loss: 'meanSquaredError'});
+
+      const xs = tf.tensor2d([1, 2, 3, 4], [4, 1]);
+      const ys = tf.tensor2d([3, 5, 7, 9], [4, 1]);
+
+      await model.fit(xs, ys, {epochs: 200});
+      console.log("✅ Model trained!");
+    });
+
+    // 2️⃣ Save the model
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      if (!model) return console.warn("Model not trained yet!");
+      await model.save('localstorage://my-tfjs-model');
+      console.log("💾 Model saved to browser localStorage!");
+    });
+
+    // 3️⃣ Reload the model
+    document.getElementById('reloadBtn').addEventListener('click', async () => {
+      reloadedModel = await tf.loadLayersModel('localstorage://my-tfjs-model');
+      console.log("🔄 Model reloaded from localStorage!");
+    });
+
+    // 4️⃣ Predict with original model
+    document.getElementById('predictOriginalBtn').addEventListener('click', () => {
+      const val = parseFloat(document.getElementById('inputVal').value);
+      if (!model) return console.warn("Original model not trained!");
+      const input = tf.tensor2d([val], [1, 1]);
+      const output = model.predict(input);
+      output.print();
+      console.log(`Original Model Prediction for ${val}: ${output.dataSync()[0].toFixed(2)}`);
+    });
+
+    // 5️⃣ Predict with reloaded model
+    document.getElementById('predictReloadBtn').addEventListener('click', () => {
+      const val = parseFloat(document.getElementById('inputVal').value);
+      if (!reloadedModel) return console.warn("Reloaded model not loaded!");
+      const input = tf.tensor2d([val], [1, 1]);
+      const output = reloadedModel.predict(input);
+      output.print();
+      console.log(`Reloaded Model Prediction for ${val}: ${output.dataSync()[0].toFixed(2)}`);
+    });
+
+    // 6️⃣ Export model
+    document.getElementById('exportBtn').addEventListener('click', async () => {
+      if (!model) return console.warn("No model to export!");
+      await model.save('downloads://my-tfjs-model');
+      console.log("🛫 Model exported as downloadable files!");
+    });
+  </script>
+</body>
+</html>

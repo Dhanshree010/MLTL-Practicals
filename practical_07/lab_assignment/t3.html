@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Model Deployment - Yash Kapse</title>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: linear-gradient(to right, #1e3c72, #2a5298);
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      color: black;
+      padding: 20px;
+      border-radius: 12px;
+      display: inline-block;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    input {
+      padding: 8px;
+      margin: 5px;
+    }
+
+    h4 {
+      margin-top: 5px;
+      color: gray;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Model Deployment in Browser</h2>
+<h4>By Yash Kapse</h4>
+
+<button onclick="trainModel()">Train Model</button>
+<button onclick="saveModel()">Save Model</button>
+<button onclick="loadModel()">Load Model</button>
+
+<br><br>
+
+<input type="number" id="inputX" placeholder="Enter value">
+<br>
+
+<button onclick="predictOriginal()">Predict Original</button>
+<button onclick="predictLoaded()">Predict Loaded</button>
+<button onclick="predictImported()">Predict Imported</button>
+
+<br><br>
+
+<h3>Upload Model Files (.json + .bin)</h3>
+<input type="file" id="modelUpload" multiple>
+<br>
+<button onclick="loadFromFiles()">Load from Files</button>
+
+<h3 id="output">Output: </h3>
+
+</div>
+
+<script>
+
+let model, loadedModel, importedModel;
+
+// 1️⃣ Train Model
+async function trainModel() {
+  console.log("🔄 Training started...");
+
+  model = tf.sequential();
+  model.add(tf.layers.dense({units:1, inputShape:[1]}));
+
+  model.compile({
+    loss:'meanSquaredError',
+    optimizer:'sgd'
+  });
+
+  const xs = tf.tensor([1,2,3,4,5]);
+  const ys = tf.tensor([2,4,6,8,10]);
+
+  await model.fit(xs, ys, {epochs:200});
+
+  console.log("✅ Training Completed");
+  alert("Model Trained ✅");
+}
+
+// 2️⃣ Save Model
+async function saveModel() {
+
+  if (!model) {
+    alert("Train model first!");
+    return;
+  }
+
+  console.log("💾 Saving to browser...");
+  await model.save('localstorage://my-model');
+
+  console.log("⬇️ Downloading files...");
+  await model.save('downloads://my-model');
+
+  console.log("✅ Model saved + downloaded");
+  alert("Saved in browser + downloaded ✅");
+}
+
+// 3️⃣ Load from Browser
+async function loadModel() {
+  console.log("📥 Loading from browser...");
+
+  loadedModel = await tf.loadLayersModel('localstorage://my-model');
+
+  console.log("✅ Model Loaded");
+  alert("Model Loaded ✅");
+}
+
+// 4️⃣ Predict Original
+function predictOriginal() {
+  if (!model) return alert("Train first!");
+
+  const x = Number(document.getElementById("inputX").value);
+  const result = model.predict(tf.tensor([x]));
+
+  result.data().then(res => {
+    console.log("Original:", res[0]);
+    document.getElementById("output").innerText =
+      "Original: " + res[0].toFixed(2);
+  });
+}
+
+// 5️⃣ Predict Loaded
+function predictLoaded() {
+  if (!loadedModel) return alert("Load model first!");
+
+  const x = Number(document.getElementById("inputX").value);
+  const result = loadedModel.predict(tf.tensor([x]));
+
+  result.data().then(res => {
+    console.log("Loaded:", res[0]);
+    document.getElementById("output").innerText +=
+      " | Loaded: " + res[0].toFixed(2);
+  });
+}
+
+// 6️⃣ Load from Files (FIXED)
+async function loadFromFiles() {
+
+  const files = Array.from(document.getElementById("modelUpload").files);
+
+  if (files.length < 2) {
+    alert("Please select BOTH .json and .bin files together!");
+    return;
+  }
+
+  // Find JSON and BIN files
+  const jsonFile = files.find(f => f.name.endsWith(".json"));
+  const binFiles = files.filter(f => f.name.endsWith(".bin"));
+
+  if (!jsonFile || binFiles.length === 0) {
+    alert("Missing .json or .bin file!");
+    return;
+  }
+
+  console.log("📂 JSON:", jsonFile.name);
+  console.log("📂 BIN:", binFiles.map(f => f.name));
+
+  try {
+    // IMPORTANT: JSON must be first, then all BIN files
+    importedModel = await tf.loadLayersModel(
+      tf.io.browserFiles([jsonFile, ...binFiles])
+    );
+
+    console.log("✅ Model Imported Successfully");
+    alert("Model Imported ✅");
+
+  } catch (err) {
+    console.error("❌ Detailed Error:", err);
+    alert("Still error → Check file names EXACTLY match!");
+  }
+}
+// 7️⃣ Predict Imported
+function predictImported() {
+
+  if (!importedModel) {
+    alert("Load model from files first!");
+    return;
+  }
+
+  const x = Number(document.getElementById("inputX").value);
+  const result = importedModel.predict(tf.tensor([x]));
+
+  result.data().then(res => {
+    console.log("Imported:", res[0]);
+    document.getElementById("output").innerText +=
+      " | Imported: " + res[0].toFixed(2);
+  });
+}
+
+</script>
+
+</body>
+</html>

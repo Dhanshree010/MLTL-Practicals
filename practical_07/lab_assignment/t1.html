@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Model Deployment - Save & Download</title>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial;
+      margin-top: 40px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 8px;
+      font-size: 16px;
+    }
+    input {
+      padding: 8px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Deploying ML Model in Browser</h2>
+
+<button onclick="trainModel()">Train Model</button>
+<button onclick="saveModel()">Save Model</button>
+<button onclick="loadModel()">Load Model</button>
+
+<br><br>
+
+<input type="number" id="inputX" placeholder="Enter value (x)">
+<button onclick="predict()">Predict</button>
+
+<h3 id="output">Output: </h3>
+
+<script>
+
+let model;
+
+// 1️⃣ Train Model
+async function trainModel() {
+
+  console.log("🔄 Training started...");
+
+  model = tf.sequential();
+
+  model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+
+  model.compile({
+    loss: 'meanSquaredError',
+    optimizer: 'sgd'
+  });
+
+  // y = 2x data
+  const xs = tf.tensor([1, 2, 3, 4, 5]);
+  const ys = tf.tensor([2, 4, 6, 8, 10]);
+
+  await model.fit(xs, ys, {
+    epochs: 200,
+    callbacks: {
+      onEpochEnd: (epoch, logs) => {
+        console.log(`Epoch ${epoch+1}: Loss = ${logs.loss.toFixed(4)}`);
+      }
+    }
+  });
+
+  console.log("✅ Training completed");
+  alert("Model Trained ✅");
+}
+
+// 2️⃣ Save Model (Browser + Download)
+async function saveModel() {
+
+  if (!model) {
+    console.log("⚠️ Train model first!");
+    alert("Train model first!");
+    return;
+  }
+
+  // Save in browser
+  console.log("💾 Saving to browser storage...");
+  await model.save('localstorage://my-model');
+  console.log("✅ Saved in browser");
+
+  // Download files
+  console.log("⬇️ Downloading model files...");
+  await model.save('downloads://my-model');
+  console.log("✅ Download complete");
+
+  alert("Model saved in browser AND downloaded ✅");
+}
+
+// 3️⃣ Load Model
+async function loadModel() {
+
+  console.log("📥 Loading model from browser...");
+
+  model = await tf.loadLayersModel('localstorage://my-model');
+
+  console.log("✅ Model loaded successfully");
+  alert("Model Loaded ✅");
+}
+
+// 4️⃣ Prediction
+function predict() {
+
+  const x = document.getElementById("inputX").value;
+
+  if (!model) {
+    console.log("⚠️ Model not loaded!");
+    alert("Load or train model first!");
+    return;
+  }
+
+  console.log("🔍 Predicting for input:", x);
+
+  const input = tf.tensor([Number(x)]);
+  const output = model.predict(input);
+
+  output.data().then(res => {
+    console.log("📊 Prediction result:", res[0]);
+
+    document.getElementById("output").innerText =
+      "Output: " + res[0].toFixed(2);
+  });
+}
+
+</script>
+
+</body>
+</html>
