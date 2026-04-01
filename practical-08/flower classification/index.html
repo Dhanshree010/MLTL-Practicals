@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlowerNet · MobileNet Flower Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js"></script>
+<style>
+:root {
+  --bg:        #faf8f4;
+  --bg2:       #f4f0e8;
+  --surface:   #ffffff;
+  --card:      #fffffe;
+  --border:    #e8e0d0;
+  --border2:   #d4c9b5;
+  --accent:    #c0392b;
+  --accent2:   #8e44ad;
+  --accent3:   #27ae60;
+  --gold:      #c9a84c;
+  --text:      #2c2416;
+  --text2:     #5a4e3c;
+  --muted:     #9d8e7a;
+  --tulip:     #e05c7a;
+  --lily:      #f0a500;
+  --hibiscus:  #c0392b;
+  --shadow:    0 2px 16px rgba(44,36,22,.08);
+  --shadow-lg: 0 8px 40px rgba(44,36,22,.12);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(192,57,43,.05) 0%, transparent 50%),
+    radial-gradient(circle at 85% 80%, rgba(142,68,173,.05) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(39,174,96,.03) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: -60px; right: -60px;
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(224,92,122,.08) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 24px;
+  margin-bottom: 28px;
+  border-bottom: 2px solid var(--border);
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.logo-icon {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #e05c7a22, #8e44ad22);
+  border: 2px solid var(--border2);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: var(--shadow);
+}
+
+.logo-text h1 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  color: var(--text);
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.logo-text h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.logo-text p {
+  color: var(--muted);
+  font-size: .7rem;
+  margin-top: 4px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.author-badge {
+  background: linear-gradient(135deg, #e05c7a, #8e44ad);
+  color: white;
+  border-radius: 100px;
+  padding: 8px 20px;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .5px;
+  box-shadow: 0 4px 16px rgba(224,92,122,.3);
+}
+
+.tf-badge {
+  font-size: .62rem;
+  color: var(--muted);
+  text-align: right;
+  font-weight: 500;
+}
+
+#status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 20px;
+  margin-bottom: 28px;
+  font-size: .78rem;
+  transition: border-color .3s, box-shadow .3s;
+  box-shadow: var(--shadow);
+  font-weight: 500;
+}
+#status-bar.ok  { border-color: #27ae60; box-shadow: 0 2px 16px rgba(39,174,96,.12); }
+#status-bar.err { border-color: #e74c3c; box-shadow: 0 2px 16px rgba(231,76,60,.12); }
+#status-bar.warn{ border-color: #c9a84c; box-shadow: 0 2px 16px rgba(201,168,76,.12); }
+
+.sdot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.sdot.pulse { background: var(--gold); animation: pulse 1.2s infinite; }
+.sdot.green { background: var(--accent3); }
+.sdot.red   { background: #e74c3c; }
+.sdot.orange{ background: var(--gold); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
+
+.phases {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.phase {
+  flex: 1;
+  min-width: 90px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  font-weight: 600;
+  transition: all .3s;
+  box-shadow: var(--shadow);
+}
+
+.phase .pn {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  display: block;
+  color: var(--border2);
+  transition: color .3s;
+  margin-bottom: 2px;
+}
+
+.phase.active { border-color: var(--gold); color: #8a6914; box-shadow: 0 2px 12px rgba(201,168,76,.2); }
+.phase.active .pn { color: var(--gold); }
+.phase.done { border-color: var(--accent3); color: #1a7a45; box-shadow: 0 2px 12px rgba(39,174,96,.15); }
+.phase.done .pn { color: var(--accent3); }
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 370px;
+  gap: 20px;
+  align-items: start;
+}
+@media(max-width:900px){ .main-grid{ grid-template-columns:1fr; } }
+.left-col, .right-col { display: flex; flex-direction: column; gap: 18px; }
+
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .2s;
+}
+.card:hover { box-shadow: var(--shadow-lg); }
+
+.sec-title {
+  font-family: 'Playfair Display', serif;
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--text2);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sec-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 16px;
+  background: linear-gradient(to bottom, var(--accent), var(--accent2));
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.flower-card {
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  border-top: 4px solid var(--fc);
+  transition: transform .2s, box-shadow .2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.flower-card::after {
+  content: '';
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 100px; height: 100px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--fc) 10%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.flower-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(44,36,22,.12); }
+
+.fh { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+
+.ficon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fc) 12%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--fc) 25%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+}
+
+.fname {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--fc);
+}
+
+.fcount {
+  margin-left: auto;
+  font-size: .62rem;
+  color: var(--muted);
+  background: var(--surface);
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.upload-zone {
+  border: 2px dashed color-mix(in srgb, var(--fc) 40%, transparent);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: color-mix(in srgb, var(--fc) 4%, transparent);
+  position: relative;
+}
+.upload-zone:hover {
+  border-color: var(--fc);
+  background: color-mix(in srgb, var(--fc) 9%, transparent);
+}
+.upload-zone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+.upload-zone span { color: var(--fc); font-size: .73rem; font-weight: 600; }
+.upload-zone p { font-size: .61rem; color: var(--muted); margin-top: 3px; }
+
+.thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.thumb {
+  width: 52px; height: 52px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid var(--fc);
+  opacity: 0;
+  animation: fadeIn .4s forwards;
+  box-shadow: 0 2px 8px rgba(44,36,22,.1);
+}
+@keyframes fadeIn { to { opacity:1; } }
+
+/* GPU warning banner */
+.gpu-warning {
+  background: rgba(201,168,76,.12);
+  border: 1.5px solid rgba(201,168,76,.4);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: .68rem;
+  color: #7a6010;
+  line-height: 1.6;
+  margin-top: 10px;
+  display: none;
+}
+.gpu-warning.show { display: block; }
+
+.add-cat-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.add-cat-row input[type=text] {
+  flex: 1;
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: .76rem;
+  outline: none;
+  transition: border-color .2s;
+  min-width: 130px;
+  font-weight: 500;
+}
+.add-cat-row input[type=text]:focus { border-color: var(--accent); }
+.add-cat-row input[type=color] {
+  width: 38px; height: 38px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  background: none;
+  padding: 3px;
+}
+
+.btn-add {
+  padding: 10px 18px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  font-size: .76rem;
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(192,57,43,.25);
+}
+.btn-add:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(192,57,43,.35); }
+
+.btn-primary {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, var(--accent), #a93226);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: .5px;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 4px 16px rgba(192,57,43,.3);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::before { content:'';position:absolute;inset:0;background:rgba(255,255,255,.12);opacity:0;transition:opacity .2s; }
+.btn-primary:hover:not(:disabled)::before { opacity:1; }
+.btn-primary:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 28px rgba(192,57,43,.4); }
+.btn-primary:disabled { opacity:.35; cursor:not-allowed; transform:none; box-shadow:none; }
+
+.btn-secondary {
+  width: 100%;
+  padding: 13px;
+  background: transparent;
+  border: 2px solid var(--accent3);
+  border-radius: 14px;
+  color: #1a7a45;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: .9rem;
+  cursor: pointer;
+  transition: all .2s;
+  margin-top: 8px;
+  letter-spacing: .3px;
+}
+.btn-secondary:hover:not(:disabled) { background: rgba(39,174,96,.08); transform: translateY(-1px); }
+.btn-secondary:disabled { opacity: .3; cursor: not-allowed; }
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .71rem;
+}
+.stat-row:last-child { border-bottom: none; }
+.sl { color: var(--muted); font-weight: 500; }
+.sv { color: var(--text); font-weight: 700; }
+.sv.rose   { color: var(--accent); }
+.sv.violet { color: var(--accent2); }
+.sv.green  { color: var(--accent3); }
+.sv.gold   { color: var(--gold); }
+
+.prog-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: .65rem;
+  color: var(--muted);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.prog-bar {
+  height: 6px;
+  background: var(--bg2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+}
+
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px;
+  width: 0%;
+  transition: width .4s ease;
+}
+
+/* Embed progress bar */
+#embed-prog-wrap { display:none; margin-bottom: 12px; }
+#embed-prog-wrap .prog-label { color: var(--gold); }
+#embed-prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), #e8a020);
+  border-radius: 3px;
+  width: 0%;
+  transition: width .3s ease;
+}
+
+#loss-chart {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 52px;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+.loss-bar {
+  flex: 1;
+  background: linear-gradient(to top, rgba(192,57,43,.5), rgba(142,68,173,.3));
+  border-radius: 3px 3px 0 0;
+  min-height: 3px;
+  transition: height .3s;
+}
+
+#cm-wrap { overflow-x: auto; }
+
+table.cm {
+  border-collapse: separate;
+  border-spacing: 4px;
+  font-size: .67rem;
+}
+table.cm th {
+  color: var(--muted);
+  padding: 4px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: .6rem;
+  letter-spacing: .5px;
+}
+table.cm td {
+  width: 58px;
+  height: 48px;
+  text-align: center;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: .85rem;
+  transition: background .4s;
+}
+.cm-diag { background: rgba(39,174,96,.18); color: #1a7a45; border: 1.5px solid rgba(39,174,96,.3); }
+.cm-off  { background: rgba(192,57,43,.12); color: #a93226; border: 1.5px solid rgba(192,57,43,.2); }
+.cm-zero { background: var(--bg2); color: var(--border2); border: 1.5px solid var(--border); }
+.cm-legend { display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;font-size:.61rem;color:var(--muted); }
+.cm-dot { display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:middle; }
+
+.class-acc-grid { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
+.class-acc-row  { display: flex; align-items: center; gap: 10px; font-size: .7rem; }
+.car-label { width: 76px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.car-bar-wrap { flex: 1; background: var(--bg2); height: 9px; border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
+.car-bar { height: 100%; border-radius: 5px; transition: width .7s ease; }
+.car-pct { width: 38px; text-align: right; font-weight: 700; color: var(--text); font-size: .72rem; }
+
+.perf-history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.perf-history::-webkit-scrollbar { width: 4px; }
+.perf-history::-webkit-scrollbar-track { background: var(--bg2); border-radius: 2px; }
+.perf-history::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.perf-entry {
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: .67rem;
+  transition: border-color .2s;
+}
+.perf-entry:hover { border-color: var(--border2); }
+.pe-head { display: flex; justify-content: space-between; margin-bottom: 6px; align-items: center; }
+.pe-ver  { color: var(--accent2); font-weight: 700; font-family: 'Playfair Display', serif; font-size: .8rem; }
+.pe-time { color: var(--muted); font-size: .62rem; }
+.pe-cats { color: var(--muted); margin-bottom: 6px; font-size: .63rem; font-weight: 500; }
+.pe-acc  { color: var(--accent3); font-weight: 700; font-size: .8rem; }
+.perf-delta { font-size: .63rem; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+.delta-up   { background: rgba(39,174,96,.15); color: #1a7a45; }
+.delta-down { background: rgba(192,57,43,.12); color: #a93226; }
+.delta-same { background: rgba(201,168,76,.15); color: #8a6914; }
+
+.pred-upload {
+  border: 2px dashed var(--border2);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  font-size: .72rem;
+  color: var(--muted);
+  transition: all .2s;
+  margin-bottom: 10px;
+  font-weight: 500;
+  background: var(--bg2);
+}
+.pred-upload:hover { border-color: var(--accent); color: var(--text); background: rgba(192,57,43,.03); }
+.pred-upload input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+#pred-preview {
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 10px;
+  display: none;
+  max-height: 140px;
+  object-fit: contain;
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+#result-box {
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+#result-label { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; }
+#result-conf  { font-size: .65rem; color: var(--muted); font-weight: 500; }
+
+#console-box {
+  background: #1a1510;
+  border: 1.5px solid var(--border2);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: .64rem;
+  height: 190px;
+  overflow-y: auto;
+  line-height: 1.9;
+  font-family: 'DM Mono', 'Courier New', monospace;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.2);
+}
+#console-box::-webkit-scrollbar { width: 3px; }
+#console-box::-webkit-scrollbar-thumb { background: #3a3020; border-radius: 2px; }
+.log-line .ts  { color: #5a5040; margin-right: 7px; }
+.log-line.info    .msg { color: #7eb8d4; }
+.log-line.success .msg { color: #6dbb8a; }
+.log-line.warn    .msg { color: #e8c56a; }
+.log-line.error   .msg { color: #e08080; }
+.log-line.accent  .msg { color: #e09060; }
+
+.spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.no-data {
+  color: var(--muted);
+  font-size: .7rem;
+  text-align: center;
+  padding: 20px 0;
+  font-style: italic;
+  font-family: 'Playfair Display', serif;
+}
+
+.inc-badge {
+  display: inline-block;
+  font-size: .58rem;
+  background: rgba(201,168,76,.15);
+  color: #8a6914;
+  border: 1px solid rgba(201,168,76,.35);
+  border-radius: 20px;
+  padding: 2px 9px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+
+.card-accent {
+  position: relative;
+}
+.card-accent::after {
+  content: '✿';
+  position: absolute;
+  top: 18px; right: 20px;
+  font-size: 1.2rem;
+  opacity: .12;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="logo-area">
+    <div class="logo-icon">🌸</div>
+    <div class="logo-text">
+      <h1>Flower<em>Net</em></h1>
+      <p>MobileNet Transfer Learning · Flower Classification</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="author-badge">🌷 Dhanshree Bhosarkar</div>
+    <div class="tf-badge">TensorFlow.js · MobileNet v1 · CDN</div>
+  </div>
+</header>
+
+<div id="status-bar">
+  <div class="sdot pulse" id="sdot"></div>
+  <span id="stext"><span class="spinner"></span>Initializing TensorFlow.js &amp; loading MobileNet...</span>
+</div>
+
+<div class="phases">
+  <div class="phase active" id="ph1"><span class="pn">01</span>Load Model</div>
+  <div class="phase" id="ph2"><span class="pn">02</span>Add Images</div>
+  <div class="phase" id="ph3"><span class="pn">03</span>Train</div>
+  <div class="phase" id="ph4"><span class="pn">04</span>Evaluate</div>
+  <div class="phase" id="ph5"><span class="pn">05</span>Classify</div>
+</div>
+
+<div class="main-grid">
+
+<div class="left-col">
+
+  <div class="card card-accent">
+    <div class="sec-title">Dataset — Flower Categories</div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <div class="gpu-warning" id="gpu-warn">
+      ⚠️ <strong>Large dataset detected.</strong> Processing many images at once can exhaust GPU memory. 
+      Images are extracted one-at-a-time with GPU cleanup between each to prevent WebGL context loss. 
+      Training may take longer but will be stable.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Add New Flower Category <span class="inc-badge">Incremental Retraining</span></div>
+    <div class="add-cat-row">
+      <input type="text" id="new-cat-name" placeholder="e.g. rose, sunflower, jasmine…" maxlength="20"/>
+      <input type="color" id="new-cat-color" value="#e91e8c" title="Pick colour"/>
+      <button class="btn-add" onclick="addNewCategory()">＋ Add Category</button>
+    </div>
+    <p style="font-size:.62rem;color:var(--muted);margin-top:12px;line-height:1.6;font-style:italic;">
+      🌿 Adding a new category marks the model as stale. Re-train to include it — accuracy changes are tracked in the Performance History panel.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Confusion Matrix <span id="cm-run-lbl" style="color:var(--muted);font-size:.6rem;font-family:'DM Sans';font-weight:400;"></span></div>
+    <div id="cm-wrap"><div class="no-data">Train the model to generate the confusion matrix.</div></div>
+    <div class="divider"></div>
+    <div class="sec-title" style="margin-bottom:10px;">Per-Class Validation Accuracy</div>
+    <div class="class-acc-grid" id="class-acc-grid"><div class="no-data">No evaluation data yet.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Performance History <span class="inc-badge">Δ Tracks Changes</span></div>
+    <div class="perf-history" id="perf-history"><div class="no-data">No training runs yet.</div></div>
+  </div>
+
+</div>
+
+<div class="right-col">
+
+  <div class="card card-accent">
+    <div class="sec-title">Training Control</div>
+    <div class="stat-row"><span class="sl">Epochs</span><span class="sv" id="stat-ep">30</span></div>
+    <div class="stat-row"><span class="sl">Learning Rate</span><span class="sv">0.0003</span></div>
+    <div class="stat-row"><span class="sl">Val Split</span><span class="sv">20%</span></div>
+    <div class="stat-row"><span class="sl">Augmentation</span><span class="sv green">Horizontal Flip</span></div>
+    <div class="stat-row"><span class="sl">Base Model</span><span class="sv rose">MobileNet v1</span></div>
+    <div class="stat-row"><span class="sl">Active Classes</span><span class="sv violet" id="stat-cls">3</span></div>
+    <div class="stat-row"><span class="sl">Run</span><span class="sv gold" id="stat-run">—</span></div>
+    <br>
+
+    <!-- Embedding extraction progress (new) -->
+    <div id="embed-prog-wrap">
+      <div class="prog-label"><span id="embed-prog-label">Extracting embeddings…</span><span id="embed-pct-label">0%</span></div>
+      <div class="prog-bar"><div id="embed-prog-fill" class="prog-fill" style="background:linear-gradient(90deg,var(--gold),#e8a020)"></div></div>
+    </div>
+
+    <div class="prog-label"><span>Training Progress</span><span id="ep-label">—</span></div>
+    <div class="prog-bar"><div class="prog-fill" id="train-prog"></div></div>
+
+    <div class="prog-label"><span>Loss</span><span id="loss-val">—</span></div>
+    <div class="prog-bar">
+      <div class="prog-fill" id="loss-prog" style="background:linear-gradient(90deg,#e74c3c,#f39c12)"></div>
+    </div>
+
+    <div class="prog-label"><span>Val Accuracy</span><span id="valacc-val">—</span></div>
+    <div class="prog-bar">
+      <div class="prog-fill" id="valacc-prog" style="background:linear-gradient(90deg,#27ae60,#2ecc71)"></div>
+    </div>
+
+    <div id="loss-chart"></div>
+    <br>
+    <button class="btn-primary" id="train-btn" disabled onclick="trainModel()">🌸 Train Model</button>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Live Classify</div>
+    <div class="pred-upload">
+      <input type="file" accept="image/*" onchange="loadPredImg(this.files[0])">
+      🌷 Upload a flower image to classify
+      <img id="pred-preview"/>
+    </div>
+    <button class="btn-secondary" id="pred-btn" disabled onclick="predict()">🔍 Identify Flower</button>
+    <div id="result-box">
+      <span style="color:var(--muted);font-size:.72rem;font-style:italic;font-family:'Playfair Display',serif">Awaiting classification…</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Console Output</div>
+    <div id="console-box"></div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const EPOCHS   = 30;
+const LR       = 0.0003;
+const VAL_FRAC = 0.2;
+const IMG_SIZE = 224;
+
+// ── FIX: limit images per class to avoid WebGL OOM ──
+// Each embedding is ~1024 floats. With MobileNet inference,
+// GPU usage spikes. We warn at >30 images per class.
+const GPU_WARN_THRESHOLD = 30;
+
+let CLASSES = ['tulip', 'lily', 'hibiscus'];
+
+const CLASS_META = {
+  tulip:    { icon: '🌷', color: '#e05c7a' },
+  lily:     { icon: '🌼', color: '#e8a020' },
+  hibiscus: { icon: '🌺', color: '#c0392b' },
+};
+
+const dataset     = { tulip: [], lily: [], hibiscus: [] };
+let mobileNet     = null;
+let classifier    = null;
+let isTrained     = false;
+let predictImg    = null;
+let runCount      = 0;
+const lossHistory = [];
+const perfHistory = [];
+
+// ── FIX: Track WebGL context loss state ──
+let webglContextLost = false;
+
+// ═══════════════════════════════════════════════
+//  LOGGING
+// ═══════════════════════════════════════════════
+function clog(msg, type = 'info') {
+  const box = document.getElementById('console-box');
+  const now = new Date();
+  const ts  = `${h2(now.getHours())}:${h2(now.getMinutes())}:${h2(now.getSeconds())}`;
+  const ln  = document.createElement('span');
+  ln.className = `log-line ${type}`;
+  ln.innerHTML = `<span class="ts">[${ts}]</span><span class="msg"> ${msg}</span>`;
+  box.appendChild(ln);
+  box.appendChild(document.createElement('br'));
+  box.scrollTop = box.scrollHeight;
+}
+const h2 = n => String(n).padStart(2, '0');
+
+function setStatus(msg, state = '') {
+  document.getElementById('stext').innerHTML = msg;
+  const bar = document.getElementById('status-bar');
+  const dot = document.getElementById('sdot');
+  bar.className = state === 'ok' ? 'ok' : state === 'err' ? 'err' : state === 'warn' ? 'warn' : '';
+  dot.className = 'sdot';
+  if (state === 'ok')   dot.classList.add('green');
+  else if (state === 'err')  dot.classList.add('red');
+  else if (state === 'warn') dot.classList.add('orange');
+  else dot.classList.add('pulse');
+}
+
+function setPhase(n) {
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById(`ph${i}`).className =
+      'phase' + (i < n ? ' done' : i === n ? ' active' : '');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  FIX: WebGL Context Recovery
+// ═══════════════════════════════════════════════
+
+/**
+ * Checks if the current WebGL backend is healthy.
+ * Returns true if OK, false if context is lost.
+ */
+function isWebGLHealthy() {
+  try {
+    const backend = tf.backend();
+    if (!backend || !backend.gpgpu) return false;
+    const gl = backend.gpgpu.gl;
+    if (!gl || gl.isContextLost()) return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Attempts to recover from a lost WebGL context by switching to CPU backend.
+ * Returns true if recovery succeeded.
+ */
+async function recoverFromContextLoss() {
+  clog('⚠ WebGL context lost — attempting CPU fallback...', 'warn');
+  webglContextLost = true;
+  try {
+    await tf.setBackend('cpu');
+    await tf.ready();
+    // Reload MobileNet on the new backend
+    clog('🔄 Reloading MobileNet on CPU backend...', 'warn');
+    mobileNet = await mobilenet.load({ version: 1, alpha: 1.0 });
+    clog('✅ Recovered on CPU backend (slower but stable)', 'success');
+    setStatus('⚠ Running on CPU (WebGL unavailable) — training will be slower', 'warn');
+    return true;
+  } catch (e) {
+    clog('❌ Recovery failed: ' + e.message, 'error');
+    setStatus('❌ Fatal GPU error — please refresh the page', 'err');
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER CATEGORY CARDS
+// ═══════════════════════════════════════════════
+function renderCards() {
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = '';
+  let totalImgs = 0;
+  CLASSES.forEach(cls => {
+    totalImgs += (dataset[cls] || []).length;
+  });
+  // Show GPU warning if large dataset
+  const warn = document.getElementById('gpu-warn');
+  if (totalImgs > GPU_WARN_THRESHOLD * CLASSES.length) {
+    warn.classList.add('show');
+  } else {
+    warn.classList.remove('show');
+  }
+
+  CLASSES.forEach(cls => {
+    const meta  = CLASS_META[cls] || { icon: '🌸', color: '#e05c7a' };
+    const imgs  = dataset[cls] || [];
+    const label = cls.charAt(0).toUpperCase() + cls.slice(1);
+    const div   = document.createElement('div');
+    div.className = 'flower-card';
+    div.style.setProperty('--fc', meta.color);
+    div.id = `card-${cls}`;
+    div.innerHTML = `
+      <div class="fh">
+        <div class="ficon">${meta.icon}</div>
+        <div class="fname">${label}</div>
+        <div class="fcount" id="fc-${cls}">${imgs.length} img${imgs.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="upload-zone">
+        <input type="file" accept="image/*" multiple onchange="addImages('${cls}', this.files)">
+        <span>＋ Add ${label} Images</span>
+        <p>Multiple files supported</p>
+      </div>
+      <div class="thumbs" id="thumbs-${cls}"></div>
+    `;
+    grid.appendChild(div);
+    imgs.forEach(img => _appendThumb(cls, img.src, meta.color));
+  });
+  document.getElementById('stat-cls').textContent = CLASSES.length;
+}
+
+function _appendThumb(cls, src, color) {
+  const c  = color || (CLASS_META[cls] || { color: '#e05c7a' }).color;
+  const th = document.createElement('img');
+  th.className = 'thumb';
+  th.src = src;
+  th.style.borderColor = c;
+  const el = document.getElementById(`thumbs-${cls}`);
+  if (el) el.appendChild(th);
+}
+
+// ═══════════════════════════════════════════════
+//  ADD NEW CATEGORY
+// ═══════════════════════════════════════════════
+function addNewCategory() {
+  const nameEl  = document.getElementById('new-cat-name');
+  const colorEl = document.getElementById('new-cat-color');
+  const raw     = nameEl.value.trim().toLowerCase().replace(/\s+/g, '_');
+  if (!raw) { clog('⚠ Enter a flower category name.', 'warn'); return; }
+  if (CLASSES.includes(raw)) { clog(`⚠ "${raw}" already exists.`, 'warn'); return; }
+  const color = colorEl.value;
+  CLASSES.push(raw);
+  CLASS_META[raw] = { icon: '🌸', color };
+  dataset[raw] = [];
+  renderCards();
+  checkTrainReady();
+  nameEl.value = '';
+  clog(`➕ New category: [${raw}]  Total classes: ${CLASSES.length}`, 'accent');
+  clog('Add images to the new category, then re-train.', 'info');
+  if (isTrained) {
+    isTrained = false;
+    document.getElementById('pred-btn').disabled = true;
+    setStatus('⚠ New category added — please re-train the model', '');
+    clog('⚠ Model is now stale — re-train to include the new category!', 'warn');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  ADD IMAGES
+// ═══════════════════════════════════════════════
+function addImages(label, files) {
+  if (!mobileNet) { clog('⚠ MobileNet not ready yet.', 'warn'); return; }
+  Array.from(files).forEach(file => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    img.onload = () => {
+      dataset[label].push(img);
+      const n = dataset[label].length;
+      _appendThumb(label, url, (CLASS_META[label] || {}).color);
+      document.getElementById(`fc-${label}`).textContent = `${n} img${n !== 1 ? 's' : ''}`;
+      clog(`📸 [${label}] image #${n} — ${file.name}`, 'accent');
+      checkTrainReady();
+      // Update GPU warning when images are added
+      renderCards();
+    };
+  });
+}
+
+function checkTrainReady() {
+  const ok = mobileNet && CLASSES.every(c => (dataset[c] || []).length > 0);
+  document.getElementById('train-btn').disabled = !ok;
+}
+
+// ═══════════════════════════════════════════════
+//  MOBILENET INIT
+// ═══════════════════════════════════════════════
+async function init() {
+  clog('TensorFlow.js v' + tf.version.tfjs, 'info');
+  clog('Loading MobileNet v1 weights from CDN...', 'info');
+  setPhase(1);
+  renderCards();
+  try {
+    // ── FIX: Set explicit WebGL flags to reduce context loss risk ──
+    tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
+    tf.env().set('WEBGL_FLUSH_THRESHOLD', 1);
+    mobileNet = await mobilenet.load({ version: 1, alpha: 1.0 });
+    clog('✅ MobileNet loaded — embedding dim: 1024', 'success');
+    const backend = tf.getBackend();
+    clog(`Backend: ${backend}`, backend === 'webgl' ? 'success' : 'warn');
+    setStatus('✅ MobileNet Ready — Add flower images to each category', 'ok');
+    setPhase(2);
+    checkTrainReady();
+  } catch (e) {
+    clog('❌ MobileNet failed: ' + e.message, 'error');
+    setStatus('❌ Failed to load MobileNet', 'err');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  FIX: Safe single-image embedding extraction
+//  Uses tf.tidy() to immediately clean up all
+//  intermediate tensors after each image.
+// ═══════════════════════════════════════════════
+async function getEmbeddingSafe(imgEl) {
+  // ── FIX: Check WebGL health before each inference ──
+  if (!webglContextLost && !isWebGLHealthy()) {
+    const recovered = await recoverFromContextLoss();
+    if (!recovered) throw new Error('WebGL context lost and recovery failed');
+  }
+
+  // ── FIX: Wrap in tidy to prevent tensor accumulation ──
+  const embData = tf.tidy(() => {
+    const t = tf.browser.fromPixels(imgEl)
+      .resizeBilinear([IMG_SIZE, IMG_SIZE])
+      .toFloat()
+      .div(tf.scalar(127.5))
+      .sub(tf.scalar(1.0))
+      .expandDims(0);
+    // infer returns a tensor — keep it outside tidy via variable
+    const emb = mobileNet.infer(t, true);
+    return emb;
+  });
+
+  // Extract raw data immediately and dispose GPU tensor
+  const data = await embData.data();
+  embData.dispose();
+
+  // Return as a plain JS Float32Array (no GPU memory held)
+  return data;
+}
+
+// ═══════════════════════════════════════════════
+//  Augmentation: horizontal flip via canvas
+// ═══════════════════════════════════════════════
+function flipImage(imgEl) {
+  const c   = document.createElement('canvas');
+  c.width   = imgEl.naturalWidth  || imgEl.width  || 224;
+  c.height  = imgEl.naturalHeight || imgEl.height || 224;
+  const ctx = c.getContext('2d');
+  ctx.translate(c.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(imgEl, 0, 0);
+  const out = new Image();
+  out.src = c.toDataURL();
+  return out;
+}
+
+// ═══════════════════════════════════════════════
+//  FIX: Batched feature dataset builder
+//  Processes ONE image at a time, yields between
+//  each to let the GPU breathe and the browser
+//  process events — prevents WebGL context loss.
+// ═══════════════════════════════════════════════
+async function buildFeatureDataset(onProgress) {
+  const allEmbeddings = [];  // Array of Float32Array
+  const rawLabels     = [];
+  const nc = CLASSES.length;
+  let featDim = 0;
+
+  // Count total work
+  let totalWork = 0;
+  CLASSES.forEach(cls => totalWork += (dataset[cls] || []).length * 2); // *2 for flip
+  let done = 0;
+
+  for (let ci = 0; ci < nc; ci++) {
+    const cls  = CLASSES[ci];
+    const imgs = dataset[cls] || [];
+    clog(`  [${cls}] ${imgs.length} original + ${imgs.length} flipped`, 'info');
+
+    for (let ii = 0; ii < imgs.length; ii++) {
+      const img = imgs[ii];
+
+      // ── Original image ──
+      try {
+        const emb = await getEmbeddingSafe(img);
+        if (featDim === 0) featDim = emb.length;
+        allEmbeddings.push(emb);
+        rawLabels.push(ci);
+      } catch (e) {
+        clog(`❌ Embedding failed [${cls}] img#${ii}: ${e.message}`, 'error');
+        throw e;
+      }
+      done++;
+      if (onProgress) onProgress(done, totalWork, `${cls} orig #${ii+1}`);
+
+      // ── Yield to browser / GPU ──
+      await tf.nextFrame();
+
+      // ── Flipped image ──
+      const fl = flipImage(img);
+      await new Promise(r => { if (fl.complete) r(); else fl.onload = r; });
+      try {
+        const embF = await getEmbeddingSafe(fl);
+        allEmbeddings.push(embF);
+        rawLabels.push(ci);
+      } catch (e) {
+        clog(`❌ Flip embedding failed [${cls}] img#${ii}: ${e.message}`, 'error');
+        throw e;
+      }
+      done++;
+      if (onProgress) onProgress(done, totalWork, `${cls} flip #${ii+1}`);
+
+      // ── Yield again after flip ──
+      await tf.nextFrame();
+
+      // ── FIX: Periodically log memory to catch leaks early ──
+      if ((ii + 1) % 10 === 0) {
+        const mem = tf.memory();
+        clog(`  Memory check: ${mem.numTensors} tensors, ${(mem.numBytes / 1024 / 1024).toFixed(1)} MB`, 'info');
+      }
+    }
+  }
+
+  clog(`  Augmented dataset: ${rawLabels.length} samples, featDim: ${featDim}`, 'success');
+
+  // ── Convert Float32Array list → single TF tensor (CPU-side concat) ──
+  const xs = tf.tensor2d(allEmbeddings, [allEmbeddings.length, featDim]);
+  const ys = tf.oneHot(tf.tensor1d(rawLabels, 'int32'), nc);
+
+  return { xs, ys, rawLabels, featDim };
+}
+
+function shufflePair(xs, ys, rawLabels) {
+  const n       = xs.shape[0];
+  const shuffled = Array.from(tf.util.createShuffledIndices(n));
+  const idxT    = tf.tensor1d(shuffled, 'int32');
+  const xsS     = tf.gather(xs, idxT);
+  const ysS     = tf.gather(ys, idxT);
+  idxT.dispose();
+  return { xsS, ysS, labelsS: shuffled.map(i => rawLabels[i]) };
+}
+
+// ═══════════════════════════════════════════════
+//  TRAIN
+// ═══════════════════════════════════════════════
+async function trainModel() {
+  if (!CLASSES.every(c => (dataset[c] || []).length > 0)) {
+    clog('⚠ Add at least one image per flower category.', 'warn');
+    return;
+  }
+  document.getElementById('train-btn').disabled = true;
+  document.getElementById('pred-btn').disabled  = true;
+  isTrained = false;
+  runCount++;
+  document.getElementById('stat-run').textContent = `#${runCount}`;
+  setPhase(3);
+  setStatus('<span class="spinner"></span>Extracting MobileNet embeddings…', '');
+
+  clog(`━━━ RUN #${runCount} — TRANSFER LEARNING ━━━`, 'accent');
+  clog(`Classes (${CLASSES.length}): ${CLASSES.join(', ')}`, 'info');
+  clog(`Epochs:${EPOCHS}  LR:${LR}  ValSplit:${VAL_FRAC * 100}%`, 'info');
+  clog(`Backend: ${tf.getBackend()}`, 'info');
+
+  // ── Show embedding progress bar ──
+  const embedWrap = document.getElementById('embed-prog-wrap');
+  embedWrap.style.display = 'block';
+  const embedFill  = document.getElementById('embed-prog-fill');
+  const embedLbl   = document.getElementById('embed-prog-label');
+  const embedPct   = document.getElementById('embed-pct-label');
+
+  let xs, ys, rawLabels, featDim;
+  try {
+    ({ xs, ys, rawLabels, featDim } = await buildFeatureDataset((done, total, label) => {
+      const pct = Math.round(done / total * 100);
+      embedFill.style.width = pct + '%';
+      embedLbl.textContent  = `Embedding: ${label}`;
+      embedPct.textContent  = `${pct}%`;
+    }));
+  } catch (e) {
+    clog('❌ Embedding extraction failed: ' + e.message, 'error');
+    setStatus('❌ Embedding extraction failed — see console', 'err');
+    document.getElementById('train-btn').disabled = false;
+    embedWrap.style.display = 'none';
+    return;
+  }
+
+  embedLbl.textContent = 'Embeddings ready ✅';
+  embedPct.textContent = '100%';
+  embedFill.style.width = '100%';
+
+  const { xsS, ysS, labelsS } = shufflePair(xs, ys, rawLabels);
+  xs.dispose(); ys.dispose();
+
+  const n      = xsS.shape[0];
+  const nVal   = Math.max(CLASSES.length, Math.round(n * VAL_FRAC));
+  const nTrain = n - nVal;
+  const xTrain = xsS.slice([0, 0], [nTrain, -1]);
+  const yTrain = ysS.slice([0, 0], [nTrain, -1]);
+  const xVal   = xsS.slice([nTrain, 0], [nVal, -1]);
+  const lTrain = labelsS.slice(0, nTrain);
+  const lVal   = labelsS.slice(nTrain);
+  xsS.dispose(); ysS.dispose();
+
+  clog(`Train: ${nTrain}  Val: ${nVal}  FeatDim: ${featDim}`, 'info');
+
+  if (classifier) { classifier.dispose(); classifier = null; }
+  const nc = CLASSES.length;
+  classifier = tf.sequential();
+  classifier.add(tf.layers.dense({
+    inputShape: [featDim], units: 256, activation: 'relu',
+    kernelInitializer: 'glorotUniform',
+    kernelRegularizer: tf.regularizers.l2({ l2: 1e-4 })
+  }));
+  classifier.add(tf.layers.batchNormalization());
+  classifier.add(tf.layers.dropout({ rate: 0.4 }));
+  classifier.add(tf.layers.dense({ units: nc, activation: 'softmax', kernelInitializer: 'glorotUniform' }));
+  classifier.compile({ optimizer: tf.train.adam(LR), loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
+
+  clog(`Head: Dense(256,relu,L2) → BN → Dropout(0.4) → Dense(${nc},softmax)`, 'info');
+  clog('━━━ TRAINING EPOCHS ━━━', 'accent');
+  setStatus('<span class="spinner"></span>Training classifier head…', '');
+
+  lossHistory.length = 0;
+  document.getElementById('loss-chart').innerHTML = '';
+  const bs = Math.max(2, Math.min(8, nTrain));
+
+  await classifier.fit(xTrain, yTrain, {
+    epochs: EPOCHS, batchSize: bs, shuffle: true,
+    callbacks: {
+      onEpochEnd: async (epoch, logs) => {
+        const loss = logs.loss.toFixed(4);
+        const acc  = (logs.acc * 100).toFixed(1);
+        const pct  = ((epoch + 1) / EPOCHS * 100).toFixed(0);
+
+        // ── FIX: Wrap val prediction in tidy to prevent tensor accumulation ──
+        const vpData = tf.tidy(() => {
+          return classifier.predict(xVal);
+        });
+        const vd  = Array.from(await vpData.data());
+        vpData.dispose();
+
+        const vpL = [];
+        for (let i = 0; i < nVal; i++) {
+          const sl = vd.slice(i * nc, (i + 1) * nc);
+          vpL.push(sl.indexOf(Math.max(...sl)));
+        }
+        const vAcc = (vpL.filter((p, i) => p === lVal[i]).length / nVal * 100).toFixed(1);
+
+        document.getElementById('train-prog').style.width  = pct + '%';
+        document.getElementById('ep-label').textContent    = `Epoch ${epoch + 1}/${EPOCHS}`;
+        document.getElementById('loss-val').textContent    = `Loss: ${loss}`;
+        document.getElementById('loss-prog').style.width   = Math.min(parseFloat(loss) * 80, 100) + '%';
+        document.getElementById('valacc-val').textContent  = vAcc + '%';
+        document.getElementById('valacc-prog').style.width = vAcc + '%';
+        document.getElementById('stat-ep').textContent     = `${epoch + 1}/${EPOCHS}`;
+
+        lossHistory.push(parseFloat(loss));
+        updateLossChart();
+
+        const type = parseFloat(vAcc) > 80 ? 'success' : parseFloat(vAcc) > 50 ? 'warn' : 'info';
+        clog(`Ep ${h2(epoch + 1)}/${EPOCHS}  loss=${loss}  acc=${acc}%  val_acc=${vAcc}%`, type);
+        await tf.nextFrame();
+      }
+    }
+  });
+
+  xTrain.dispose(); yTrain.dispose();
+  embedWrap.style.display = 'none';
+
+  // ── EVALUATE
+  clog('━━━ EVALUATION ━━━', 'accent');
+  setPhase(4);
+  setStatus('<span class="spinner"></span>Computing confusion matrix…', '');
+
+  const { confMatrix, classAcc, overallAcc } = await runEvaluation(xVal, lVal);
+  xVal.dispose();
+
+  clog(`Overall Val Accuracy: ${(overallAcc * 100).toFixed(1)}%`, overallAcc > 0.8 ? 'success' : 'warn');
+  CLASSES.forEach((cls, i) => {
+    clog(`  [${cls}] recall: ${(classAcc[i] * 100).toFixed(1)}%`, classAcc[i] > 0.8 ? 'success' : 'warn');
+  });
+
+  renderConfusionMatrix(confMatrix);
+  renderClassAcc(classAcc);
+  recordPerformance(overallAcc, classAcc);
+
+  isTrained = true;
+  clog('━━━ COMPLETE ━━━', 'success');
+  clog('✅ FlowerNet ready — upload a flower image to classify!', 'success');
+  setStatus('✅ Training complete! Confusion matrix updated.', 'ok');
+  setPhase(5);
+  document.getElementById('pred-btn').disabled  = false;
+  document.getElementById('train-btn').disabled = false;
+  document.getElementById('train-btn').textContent = '🌸 Re-Train';
+}
+
+// ═══════════════════════════════════════════════
+//  EVALUATE
+// ═══════════════════════════════════════════════
+async function runEvaluation(xVal, trueLabels) {
+  const nc = CLASSES.length;
+  // ── FIX: use tidy for eval prediction ──
+  const predsT  = tf.tidy(() => classifier.predict(xVal));
+  const data    = Array.from(await predsT.data());
+  predsT.dispose();
+
+  const predLabels = [];
+  for (let i = 0; i < xVal.shape[0]; i++) {
+    const sl = data.slice(i * nc, (i + 1) * nc);
+    predLabels.push(sl.indexOf(Math.max(...sl)));
+  }
+  const cm = Array.from({ length: nc }, () => Array(nc).fill(0));
+  predLabels.forEach((p, i) => cm[trueLabels[i]][p]++);
+  const classAcc = CLASSES.map((_, ci) => {
+    const total = cm[ci].reduce((a, b) => a + b, 0);
+    return total === 0 ? 0 : cm[ci][ci] / total;
+  });
+  const overallAcc = predLabels.filter((p, i) => p === trueLabels[i]).length / trueLabels.length;
+  return { confMatrix: cm, classAcc, overallAcc };
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER CONFUSION MATRIX
+// ═══════════════════════════════════════════════
+function renderConfusionMatrix(cm) {
+  document.getElementById('cm-run-lbl').textContent = `— Run #${runCount}`;
+  let html = '<table class="cm"><thead><tr><th style="text-align:right;padding-right:6px;font-style:italic">Actual ↓ &nbsp; Pred →</th>';
+  CLASSES.forEach(c => {
+    const m = CLASS_META[c] || { icon: '🌸' };
+    html += `<th>${m.icon}<br>${c}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+  cm.forEach((row, ri) => {
+    const m = CLASS_META[CLASSES[ri]] || { icon: '🌸' };
+    html += `<tr><th style="text-align:right;padding:4px 8px 4px 0;color:var(--muted);font-size:.62rem;font-weight:600">${m.icon} ${CLASSES[ri]}</th>`;
+    row.forEach((val, ci) => {
+      const cls = val === 0 ? 'cm-zero' : ri === ci ? 'cm-diag' : 'cm-off';
+      html += `<td class="${cls}">${val}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += `</tbody></table>
+  <div class="cm-legend">
+    <span><span class="cm-dot" style="background:rgba(39,174,96,.25)"></span>Correct</span>
+    <span><span class="cm-dot" style="background:rgba(192,57,43,.18)"></span>Misclassified</span>
+    <span style="margin-left:auto;font-style:italic">Rows = Actual · Cols = Predicted</span>
+  </div>`;
+  document.getElementById('cm-wrap').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER PER-CLASS ACCURACY BARS
+// ═══════════════════════════════════════════════
+function renderClassAcc(classAcc) {
+  const grid = document.getElementById('class-acc-grid');
+  grid.innerHTML = '';
+  CLASSES.forEach((cls, i) => {
+    const pct  = (classAcc[i] * 100).toFixed(1);
+    const meta = CLASS_META[cls] || { icon: '🌸', color: '#e05c7a' };
+    const row  = document.createElement('div');
+    row.className = 'class-acc-row';
+    row.innerHTML = `
+      <div class="car-label" title="${cls}">${meta.icon} ${cls}</div>
+      <div class="car-bar-wrap">
+        <div class="car-bar" style="width:${pct}%;background:linear-gradient(90deg,${meta.color},${meta.color}88)"></div>
+      </div>
+      <div class="car-pct">${pct}%</div>
+    `;
+    grid.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  PERFORMANCE HISTORY
+// ═══════════════════════════════════════════════
+function recordPerformance(overallAcc, classAcc) {
+  perfHistory.push({
+    ver: runCount,
+    classes: [...CLASSES],
+    overallAcc,
+    classAcc: [...classAcc],
+    time: new Date().toLocaleTimeString()
+  });
+  renderPerfHistory();
+}
+
+function renderPerfHistory() {
+  const wrap = document.getElementById('perf-history');
+  wrap.innerHTML = '';
+  if (!perfHistory.length) {
+    wrap.innerHTML = '<div class="no-data">No training runs yet.</div>';
+    return;
+  }
+  [...perfHistory].reverse().forEach((e, ri) => {
+    const prevIdx = perfHistory.length - 2 - ri;
+    const prev    = prevIdx >= 0 ? perfHistory[prevIdx] : null;
+    const delta   = prev ? (e.overallAcc - prev.overallAcc) * 100 : null;
+    let deltaHtml = '';
+    if (delta !== null) {
+      const cls  = delta > 0.5 ? 'delta-up' : delta < -0.5 ? 'delta-down' : 'delta-same';
+      const sign = delta >= 0 ? '▲' : '▼';
+      deltaHtml  = `<span class="perf-delta ${cls}">${sign} ${Math.abs(delta).toFixed(1)}%</span>`;
+    }
+    const newCats  = prev ? CLASSES.filter(c => !prev.classes.includes(c)) : [];
+    const newBadge = newCats.length
+      ? `<span style="font-size:.6rem;color:var(--accent);margin-left:6px;font-family:'DM Sans'">+${newCats.join(', ')}</span>`
+      : '';
+    const div = document.createElement('div');
+    div.className = 'perf-entry';
+    div.innerHTML = `
+      <div class="pe-head">
+        <span class="pe-ver">Run #${e.ver}${newBadge}</span>
+        <span class="pe-time">${e.time}</span>
+      </div>
+      <div class="pe-cats">🌿 Classes: ${e.classes.map(c => `${(CLASS_META[c] || { icon: '🌸' }).icon} ${c}`).join(', ')}</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <span class="pe-acc">Val Acc: ${(e.overallAcc * 100).toFixed(1)}%</span>
+        ${deltaHtml}
+      </div>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:7px;">
+        ${e.classes.map((c, i) => {
+          const m = CLASS_META[c] || { icon: '?', color: '#888' };
+          return `<span style="font-size:.62rem;color:${m.color};background:color-mix(in srgb,${m.color} 12%,transparent);padding:2px 8px;border-radius:20px;border:1px solid color-mix(in srgb,${m.color} 25%,transparent);font-weight:600">${m.icon} ${(e.classAcc[i] * 100).toFixed(0)}%</span>`;
+        }).join('')}
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  LOSS CHART
+// ═══════════════════════════════════════════════
+function updateLossChart() {
+  const el = document.getElementById('loss-chart');
+  el.innerHTML = '';
+  const maxL = Math.max(...lossHistory, 0.01);
+  lossHistory.forEach(l => {
+    const b = document.createElement('div');
+    b.className = 'loss-bar';
+    b.style.height = ((l / maxL) * 46 + 4) + 'px';
+    el.appendChild(b);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  PREDICT
+// ═══════════════════════════════════════════════
+function loadPredImg(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  predictImg = new Image();
+  predictImg.crossOrigin = 'anonymous';
+  predictImg.src = url;
+  const prev = document.getElementById('pred-preview');
+  prev.src = url;
+  prev.style.display = 'block';
+  clog(`🖼 Predict image: ${file.name}`, 'info');
+}
+
+async function predict() {
+  if (!isTrained || !predictImg) {
+    clog('⚠ Please train the model and upload a flower image first.', 'warn');
+    return;
+  }
+  clog('🔍 Running inference…', 'info');
+  const nc = CLASSES.length;
+
+  // ── FIX: Use safe embedding for prediction too ──
+  let embData;
+  try {
+    embData = await getEmbeddingSafe(predictImg);
+  } catch (e) {
+    clog('❌ Prediction embedding failed: ' + e.message, 'error');
+    return;
+  }
+
+  const emb  = tf.tensor2d([Array.from(embData)], [1, embData.length]);
+  const prob = tf.tidy(() => classifier.predict(emb));
+  const arr  = Array.from(await prob.data());
+  emb.dispose();
+  prob.dispose();
+
+  const maxI = arr.indexOf(Math.max(...arr));
+  const lbl  = CLASSES[maxI];
+  const conf = (arr[maxI] * 100).toFixed(1);
+  const meta = CLASS_META[lbl] || { icon: '🌸', color: '#e05c7a' };
+
+  const breakdown = arr.map((p, i) => {
+    const m = CLASS_META[CLASSES[i]] || { icon: '?', color: '#888' };
+    return `<span style="color:${m.color};font-weight:600">${m.icon} ${(p * 100).toFixed(1)}%</span>`;
+  }).join(' &nbsp;·&nbsp; ');
+
+  document.getElementById('result-box').innerHTML = `
+    <span id="result-label" style="color:${meta.color}">${meta.icon} ${lbl.toUpperCase()}</span>
+    <span id="result-conf">Confidence: <b>${conf}%</b></span>
+    <span style="font-size:.63rem;margin-top:4px;color:var(--text2)">${breakdown}</span>
+  `;
+
+  clog(`🌸 Result: ${lbl.toUpperCase()} (${conf}%)`, 'success');
+  clog('   ' + CLASSES.map((c, i) => `${(CLASS_META[c] || { icon: '?' }).icon} ${(arr[i] * 100).toFixed(1)}%`).join('  '), 'info');
+}
+
+// ═══════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
